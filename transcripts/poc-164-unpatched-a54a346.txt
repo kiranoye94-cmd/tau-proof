@@ -1,0 +1,17 @@
+validators=3  approval_threshold=2  (2-of-3)
+
+proposal: 8168851d4da71e980c9df242 ...  activation height 10
+
+block: V1 approve  admitted=True counted_in_tally=True
+block: V3 DECLINE  admitted=True counted_in_tally=True
+
+genuine approvals : 1
+declines          : 1
+tally used by code: 2
+still pending     : False
+scheduled         : True  [(10, b'\x81h\x85\x1dM\xa7\x1e\x98\x0c\x9d\xf2B\xa4\xe1\xa1\xfd\xa1\xb5\xb2\x81\x03Y\x8e\xd88C\xd2\x88[\xc7Ci')]
+
+control: mempool admits the same decline vote? False
+
+RESULT: VULNERABLE — the update is scheduled for activation at height 10
+        with ONE genuine approval; V3's signed NO was counted as a YES.

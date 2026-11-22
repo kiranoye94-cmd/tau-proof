@@ -1,0 +1,16 @@
+validators=3  approval_threshold=2  (2-of-3)
+
+proposal: 8168851d4da71e980c9df242 ...  activation height 10
+
+block: V1 approve  admitted=True counted_in_tally=True
+block: V3 DECLINE  admitted=True counted_in_tally=False
+
+genuine approvals : 1
+declines          : 1
+tally used by code: 1
+still pending     : True
+scheduled         : False  []
+
+control: mempool admits the same decline vote? False
+
+RESULT: SAFE — the decline contributed nothing; update still pending (1/2).
