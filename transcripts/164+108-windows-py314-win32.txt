@@ -1,0 +1,48 @@
+Independent cross-platform reproduction — operator PC
+=====================================================
+
+Machine : Microsoft Windows [Version 10.0.26200.8655]
+Python  : 3.14.4 (win32)
+Repo    : https://github.com/IDNI/tau-testnet @ a54a346 (detached HEAD)
+Deps    : blake3 1.0.11 (cp314 win_amd64), py_arkworks_bls12381 0.5.0 (cp314 win_amd64)
+Scripts : https://github.com/kiranoye94-cmd/tau-proof
+
+No native tau-lang engine, no node, no network — pure Python, exactly as on the
+Linux VPS that reported these, so the result is platform-independent.
+
+$ .venv\Scripts\python %USERPROFILE%\repro_164.py
+python: 3.14.4 | platform: win32
+repo HEAD: a54a346
+threshold: 1
+
+A block-apply NO-vote: admitted=True submitted=True promoted_to_scheduled=True
+A votes recorded for uid: 1
+B mempool NO-vote:     admitted=False submitted=False promoted=False
+C block-apply YES-vote: admitted=True submitted=True promoted=True
+
+RESULT: VULNERABLE — decline counted as approval
+exit164=1
+
+$ .venv\Scripts\python %USERPROFILE%\repro_108.py
+python: 3.14.4 | platform: win32
+repo HEAD: a54a346
+
+width_for_count(254) = 8 | usable_ceiling(8)  = 254
+width_for_count(255) = 16 | usable_ceiling(16) = 65534
+
+1) allocator     -> AllocatorCapacityExceeded | id 255 exceeds bv[8] usable range
+2) intern_value  -> ShrinkUnavailable | intern failed: id 255 exceeds bv[8] usable range
+3) NOT HANDLED   -> ShrinkUnavailable | intern failed: id 255 exceeds bv[8] usable range
+4) control       -> ShrinkWidthOverflow caught then re-raised in test mode
+
+CONCLUSION: at 254 interned addresses the node has no path to bv[16].
+width_for_count(254) recomputes 8 on every restart, id 255 never fits,
+and the capacity error never reaches the re-exec recovery.
+exit108=0
+
+Comparison with the Linux VPS run (transcripts/164-unpatched-a54a346.txt,
+transcripts/108-unpatched-a54a346.txt): identical on every line except the
+`python:` banner (3.11.15/linux vs 3.14.4/win32).
+
+Line "intern failed: id 255 exceeds bv[8] usable range" is byte-for-byte the
+string quoted in issue #108's node log.
