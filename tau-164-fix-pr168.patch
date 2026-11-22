@@ -1,0 +1,96 @@
+From cbe7c8048cc17f2b6c5632b27237a9a5a4cdf022 Mon Sep 17 00:00:00 2001
+From: hermes-agent <noreply@hermes.local>
+Date: Sun, 22 Nov 2026 11:41:26 +0700
+Subject: [PATCH] fix(governance): a signed decline vote must not count as
+ approval (#164)
+
+---
+ consensus/governance.py  | 10 ++++++++
+ tests/test_governance.py | 50 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)
+
+diff --git a/consensus/governance.py b/consensus/governance.py
+index 938051a..a43aba7 100644
+--- a/consensus/governance.py
++++ b/consensus/governance.py
+@@ -752,6 +752,16 @@ class ConsensusLifecycleManager:
+         Returns True if the vote contributed to the tally, False if duplicate no-op or invalid state.
+         """
+         uid = vote.update_id
++
++        # v1 has no decline semantics: a signed approve=False is dropped by the
++        # mempool (see can_admit_vote) and by admission/gossip, so it must not
++        # contribute to the tally on the block-apply path either. Counting it
++        # let a proposer turn a validator's signed "no" into a "yes" and promote
++        # a rule update (issue #164). Soft no-op, never a hard reject: block
++        # validity has to stay deterministic across replays.
++        if vote.approve is False:
++            return False
++
+         if uid not in self.pending_updates:
+             # Non-duplicate vote targeting an update that is already approved-and-scheduled is invalid in context
+             # "duplicate vote by the same validator for the same update_id in the same block is always a valid no-op"
+diff --git a/tests/test_governance.py b/tests/test_governance.py
+index 6661b2f..273ed9e 100644
+--- a/tests/test_governance.py
++++ b/tests/test_governance.py
+@@ -126,6 +126,56 @@ class TestGovernance(unittest.TestCase):
+         self.assertEqual(len(manager.scheduled_updates), 0)
+         self.assertIn(update.update_id, manager.archival_updates)
+         
++    def test_decline_vote_never_counts_as_approval(self):
++        """#164: a signed approve=False must not promote an update on the block path.
++
++        The mempool drops decline votes, but a proposer can put one straight in a
++        block; submit_vote used to tally it, so a signed "no" became a "yes".
++        """
++        manager = ConsensusLifecycleManager(active_validators=self.active_validators)
++        update = ConsensusRuleUpdate(["test"], 10)
++        manager.submit_update(update)
++
++        decline = ConsensusRuleVote(update.update_id, False)
++
++        # mempool path already refuses it
++        self.assertFalse(
++            manager.can_admit_vote(decline, self.active_validators[0], is_mempool=True)
++        )
++        # block-apply path: soft no-op, never a hard reject
++        self.assertFalse(manager.submit_vote(decline, self.active_validators[0]))
++
++        self.assertIn(update.update_id, manager.pending_updates)
++        self.assertEqual(manager.votes.get(update.update_id), set())
++        self.assertEqual(len(manager.scheduled_updates), 0)
++
++        # a real approval still promotes, so the guard is not over-broad
++        approve = ConsensusRuleVote(update.update_id, True)
++        self.assertTrue(manager.submit_vote(approve, self.active_validators[0]))
++        self.assertTrue(manager.submit_vote(approve, self.active_validators[1]))
++        self.assertNotIn(update.update_id, manager.pending_updates)
++        self.assertEqual(len(manager.scheduled_updates), 1)
++
++    def test_decline_vote_cannot_promote_single_validator_update(self):
++        """#164 worst case: threshold 1, one validator, one signed decline."""
++        pk = bytes.fromhex(f"{7:096x}")
++        manager = ConsensusLifecycleManager(active_validators=[pk])
++        self.assertEqual(manager.approval_threshold, 1)
++
++        update = ConsensusRuleUpdate(["test"], 10)
++        manager.submit_update(update)
++
++        decline = ConsensusRuleVote(update.update_id, False)
++        self.assertFalse(manager.submit_vote(decline, pk))
++        self.assertIn(update.update_id, manager.pending_updates)
++        self.assertEqual(len(manager.scheduled_updates), 0)
++
++        # the same validator's yes vote does promote
++        approve = ConsensusRuleVote(update.update_id, True)
++        self.assertTrue(manager.submit_vote(approve, pk))
++        self.assertNotIn(update.update_id, manager.pending_updates)
++        self.assertEqual(len(manager.scheduled_updates), 1)
++
+     def test_lifecycle_expiry(self):
+         manager = ConsensusLifecycleManager(active_validators=self.active_validators)
+         update = ConsensusRuleUpdate(["test"], 10)
+-- 
+2.43.0
+

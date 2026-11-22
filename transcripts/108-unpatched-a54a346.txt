@@ -1,0 +1,14 @@
+python: 3.11.15 | platform: linux
+repo HEAD: a54a346
+
+width_for_count(254) = 8 | usable_ceiling(8)  = 254
+width_for_count(255) = 16 | usable_ceiling(16) = 65534
+
+1) allocator     -> AllocatorCapacityExceeded | id 255 exceeds bv[8] usable range
+2) intern_value  -> ShrinkUnavailable | intern failed: id 255 exceeds bv[8] usable range
+3) NOT HANDLED   -> ShrinkUnavailable | intern failed: id 255 exceeds bv[8] usable range
+4) control       -> ShrinkWidthOverflow caught then re-raised in test mode
+
+CONCLUSION: at 254 interned addresses the node has no path to bv[16].
+width_for_count(254) recomputes 8 on every restart, id 255 never fits,
+and the capacity error never reaches the re-exec recovery.

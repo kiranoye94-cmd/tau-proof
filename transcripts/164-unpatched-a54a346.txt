@@ -1,0 +1,10 @@
+python: 3.11.15 | platform: linux
+repo HEAD: a54a346
+threshold: 1
+
+A block-apply NO-vote: admitted=True submitted=True promoted_to_scheduled=True
+A votes recorded for uid: 1
+B mempool NO-vote:     admitted=False submitted=False promoted=False
+C block-apply YES-vote: admitted=True submitted=True promoted=True
+
+RESULT: VULNERABLE — decline counted as approval

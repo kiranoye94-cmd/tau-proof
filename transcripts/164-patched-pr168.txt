@@ -1,0 +1,10 @@
+python: 3.11.15 | platform: linux
+repo HEAD: cbe7c80
+threshold: 1
+
+A block-apply NO-vote: admitted=True submitted=False promoted_to_scheduled=False
+A votes recorded for uid: 0
+B mempool NO-vote:     admitted=False submitted=False promoted=False
+C block-apply YES-vote: admitted=True submitted=True promoted=True
+
+RESULT: SAFE — decline is a no-op, approval path unchanged
